@@ -1,11 +1,13 @@
 module NumberDecode
   BASE = {
     "!" => 2,
-    '^' => 2
+    '^' => 2,
     "#" => 16,
     "%" => 10,
     "@" => :reg,
     "$" => :label,
+    "&" => :label,
+    "\""=> :string,
   }
 
   def self.decode(s)
@@ -16,6 +18,9 @@ module NumberDecode
       o[:type] = :reg
       o[:value] = s[1..-1].to_i
       return o
+    elsif b == :string
+      str = s[1..-2]
+      return str.chars.map{|x| x.ord}.map{|x| {type: :num, value: x}}
     elsif b == :label
       return s[1..-1]
     end

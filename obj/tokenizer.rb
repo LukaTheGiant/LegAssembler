@@ -1,11 +1,6 @@
 MYOWNTOPLEVEL = binding
-def fileRequire(file)
-  require "./prgms/obj/#{file}"
-end
-class Tokenizer
+module Tokenizer
   @@filesDone = []
-  attr_reader :tokenArray, :labelRef
-
   Rules = {
     label: {
       proc: proc do |l|
@@ -14,19 +9,31 @@ class Tokenizer
     },
     org: {
       proc: proc do |l|
+        soft = false
         value = NumberDecode.decode(l[1])
-        raise "LDI requires immediate first" if value[:type] != :num
-        next { type: :org, addr: value }
+        soft = true if l.length>2 && l[2] == "soft"
+        raise "labels in org not supported yet" if value.is_a? String
+        raise "org value must be a number" unless value[:type]==:num
+        next { type: :org, addr: value, soft: soft}
+      end,
+    },
+    unsoft: {
+      proc: proc do |l|
+        next { type: :unsoft }
       end,
     },
     include: {
       proc: proc do |l|
         next [] if @@filesDone.include?(l[1])
-        t = Tokenizer.new
-        t.tokenizeFile("./prgms/#{l[1]}.asm")
-        @@filesDone << l[1]
-        next t.tokenArray
+        next tokenizeFile("#{l[1]}")
       end,
+    },
+    db: {
+      proc: proc do |l|
+        values = l[1..-1].map {|x| NumberDecode.decode(x)}
+        values.flatten!
+        next values.map {|x| {type: :db, value: x}}
+      end
     },
   }
 
@@ -36,58 +43,33 @@ class Tokenizer
     end,
   }
 
-  def initialize()
-    @tokenArray = []
-  end
-
-  def tokenizeFile(fileName)
+  def self.tokenizeFile(fileName)
+    tokenlist = []
     file = File.read(fileName)
 
     tem = ERB.new file
 
     fileLines = tem.result(MYOWNTOPLEVEL).split("\n")
+    i=1
     fileLines.each do |line|
-      tokenizeLine(line) unless line == ""
+      token = tokenizeLine(line) unless line == ""
+      tokenlist << token if token
+      i+=1
     end
+    tokenlist.flatten!
+    return tokenlist
   end
 
-  def tokenizeLine(line)
+  def self.tokenizeLine(line, lineNumber:0)
     i = line.split(";")
-    s = i[0].split()
+    s = i[0].scan(/(?:"|')[\w\s]*(?:"|')|[^\s]+/) if i[0]
+    return unless s #return early if there is no content to tokenize
+    s.flatten!
+    # pp s
     o = nil
     if s.length > 0
       o = Rules[s[0].to_sym][:proc].call(s)
     end
-    push(o)
-  end
-
-  def push(o)
-    return if o.nil?
-
-    @tokenArray << o
-    @tokenArray.flatten!
-    return o.length if o.respond_to?(:length)
-  end
-
-  def replace(i, o)
-    @tokenArray[i] = o
-    @tokenArray.flatten!
-    return o.length if o.respond_to?(:length)
-  end
-
-  def suffix(i, o)
-    @tokenArray.insert(i, o)
-    @tokenArray.flatten!
-    return o.length if o.respond_to?(:length)
-  end
-
-  def postfix(i, o)
-    @tokenArray.insert(i + 1, o)
-    @tokenArray.flatten!
-    return o.length if o.respond_to?(:length)
-  end
-
-  def filter(&block)
-    @tokenArray.filter!(&block)
+    return o
   end
 end
