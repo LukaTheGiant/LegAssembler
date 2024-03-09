@@ -111,64 +111,6 @@ module Overture
     return out
   end
 
-  def self.link(tokenList)
-    #Remove labels and replace ALL name referances
-    #By the end, all that should be left is instructions and orgs
-    labelHash = {}
-    #go through labels and give them values
-    addr = 0
-    tokenList.each do |e|
-      # pp e
-      case e[:type]
-      when :org
-        addr = e[:addr][:value]
-      when :inst
-        addr += 1
-      when :label
-        puts "[WARN] LABEL #{e[:name]} WILL BE TRUNCATED, UNEXPECTED BHAVIOR MAY OCCUR" if addr&0b11000000 != 0
-        labelHash[e[:name]] = addr
-      when :db
-        addr += 1
-      when :token
-        raise "Should assemble before linking: #{e}"
-      end
-    end
-    pp labelHash
-
-    #final pass
-    newList = tokenList.filter { |x| x[:type] == :inst || x[:type] == :org || x[:type] == :db}
-    newList.each do |e|
-      [:v1, :v2, :v3].each do |argName|
-        next unless e.include?(argName)
-        if labelHash.include?(e[argName])
-          e[argName] = { type: :num, value: labelHash[e[argName]] }
-        end
-      end
-    end
-    return newList
-  end
-
-  def self.compile(tokenList)
-    out = Array.new(0x8000, 0)
-    i = 0
-
-    tokenList.each do |e|
-      #org and inst is all thats left
-      if e[:type] == :org
-        i = e[:addr][:value] & 0x3fff unless e[:soft]
-      elsif e[:type] == :db
-        out[i] = e[:value][:value]
-        i+=1
-      else
-        out[i] = CompRules[e[:inst]].call(e)
-        i+=1
-      end
-      
-    end
-
-    return out
-  end
-
   def self.condCarry(m)
     out = 0b010
     raise "invalid carry addon for jump instruction" if m[:cflag].length > 3 || m[:cflag].length < 2
