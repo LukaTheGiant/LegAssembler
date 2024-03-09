@@ -64,12 +64,14 @@ module OvertureNext
         # pp topval
         if topval != 0
           num[:value] = num[:value]&0b00111111
-          #LOAD IN HIGH BITS FROM VONCON
-          out << { type: :inst, inst: :imm, v1: NumberDecode.decode("##{3+topval}") }
-          out << { type: :inst, inst: :mov, v1: NumberDecode.decode("@0"), v2: NumberDecode.decode("@7") }
-          out << { type: :inst, inst: :mov, v1: NumberDecode.decode("@6"), v2: NumberDecode.decode("@2") }
-          out << { type: :inst, inst: :imm, v1: num }
+          out << { type: :inst, inst: :imm, v1: num>>2 }
           out << { type: :inst, inst: :mov, v1: NumberDecode.decode("@0"), v2: NumberDecode.decode("@1") }
+          out << { type: :inst, inst: :imm, v1: 2 }
+          out << { type: :inst, inst: :mov, v1: NumberDecode.decode("@0"), v2: NumberDecode.decode("@2") }
+          out << { type: :inst, inst: :alu, v1: {value: ALUMAP[:shl]} }
+          out << { type: :inst, inst: :mov, v1: NumberDecode.decode("@3"), v2: NumberDecode.decode("@1") }
+          out << { type: :inst, inst: :imm, v1: num&0b11 }
+          out << { type: :inst, inst: :mov, v1: NumberDecode.decode("@0"), v2: NumberDecode.decode("@2") }
           out << { type: :inst, inst: :alu, v1: {value: ALUMAP[:or]} }
           if outReg.nil?
             out << { type: :inst, inst: :mov, v1: NumberDecode.decode("@3"), v2: NumberDecode.decode("@0") }
