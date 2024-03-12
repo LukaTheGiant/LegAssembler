@@ -72,13 +72,16 @@ module Linker
 
         
         newList.each do |e| 
-          [:v1, :v2, :v3, :addr].each do |argName|
+          [:v1, :v2, :v3, :addr, :value].each do |argName|
             next unless e.include?(argName)
             next unless e[argName].is_a? String
             #SEPERATE OFFSET
-            # pp e if opts[:verbose]
+            pp e if opts[:verbose]
             labelOpMatch = labelOps.keys.map{|x| "\\#{x}"}.join('|')
-            match = /\A(?<label>\w*)((?<op>(#{labelOpMatch}))(?<offset>(\$|\^|\&|\%|\#|\!)\d*))?\z/.match(e[argName])
+            labelInvertedOpMatch = "[^#{labelOpMatch}]"
+            matchRegex = /\A(?<label>#{labelInvertedOpMatch}*)((?<op>(#{labelOpMatch}))(?<offset>(\$|\^|\&|\%|\#|\!)\d*))?\z/
+            match = matchRegex.match(e[argName])
+            pp matchRegex if opts[:verbose]
             pp match if opts[:verbose]
             if labelHash.include?(match['label'])
               e[argName] = { type: :num, value: labelHash[match['label']] }
@@ -101,6 +104,7 @@ module Linker
         i = 0
     
         arr.each do |e|
+          pp e if opts[:verbose]
           #org and inst is all thats left
           if e[:type] == :org
             i = e[:addr][:value] & 0x3fff unless e[:soft]
@@ -108,6 +112,7 @@ module Linker
             out[i] = e[:value][:value]
             i+=1
           else
+            puts "[WARN] DATA OVERWRITE AT #%04x / #{i}" % i if out[i] != 0
             out[i] = opts[:arch]::BinRules[e[:inst]].call(e)
             i+=1
           end
@@ -120,7 +125,7 @@ module Linker
         FileUtils.mkdir_p outputPath
         f = File.open(outputFileName, "wb")
         dataOut = out.pack(opts[:arch]::PackCharm)
-        pp dataOut if opts[:verbose]
+        # pp dataOut if opts[:verbose]
         f.write dataOut
 
         f.close
