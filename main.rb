@@ -15,7 +15,7 @@ OptionParser.new do |opts|
   opts.on('-v', '--verbose')
   opts.on('-a', '--asm')
   opts.on('-l', '--ln')
-
+  opts.on('--list')
 end.parse!(into:options)
 
 options[:arch] = 'ove' unless options[:arch]
@@ -56,7 +56,7 @@ if (options[:asm].nil? && options[:ln].nil?)
   pp assembledList if options[:verbose]
 
   puts 'linking from assembled list'
-  Linker.fromArr assembledList, arch: m, outFile: outputFileName, verbose: options[:verbose]
+  Linker.fromArr assembledList, arch: m, outFile: outputFileName, verbose: options[:verbose], list:options[:list]
 
   exit
 end
@@ -72,7 +72,7 @@ if options[:asm]
 
   Assembler.outputFile assembledList, arch: m, verbose: options[:verbose], outFile: outputFileName
 elsif options[:ln]
-  Linker.fromFile filePath, outFile: outputFileName, arch: m,  verbose: options[:verbose]
+  Linker.fromFile filePath, outFile: outputFileName, arch: m,  verbose: options[:verbose], list:options[:list]
 end
 
 
