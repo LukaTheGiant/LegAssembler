@@ -62,7 +62,7 @@ module Tokenizer
 
   def self.tokenizeLine(line, opts ={})
     i = line.split(";")
-    s = i[0].scan(/(?:"|')[\w\s]*(?:"|')|[^\s]+/) if i[0]
+    s = i[0].scan(/(?:")[\w\s]*(?:")|[^\s]+/) if i[0]
     return unless s #return early if there is no content to tokenize
     s.flatten!
     # pp s

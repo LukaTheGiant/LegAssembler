@@ -6,7 +6,9 @@ module NumberDecode
     "%" => 10,
     "@" => :reg,
     "$" => :label,
+    "'"=> :label,
     "\""=> :string,
+
   }
 
   def self.decode(s)
