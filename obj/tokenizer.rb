@@ -43,7 +43,7 @@ module Tokenizer
     end,
   }
 
-  def self.tokenizeFile(fileName)
+  def self.tokenizeFile(fileName, opts = {})
     tokenlist = []
     file = File.read(fileName)
 
@@ -52,7 +52,7 @@ module Tokenizer
     fileLines = tem.result(MYOWNTOPLEVEL).split("\n")
     i=1
     fileLines.each do |line|
-      token = tokenizeLine(line) unless line == ""
+      token = tokenizeLine(line, opts) unless line == ""
       tokenlist << token if token
       i+=1
     end
@@ -60,7 +60,7 @@ module Tokenizer
     return tokenlist
   end
 
-  def self.tokenizeLine(line, lineNumber:0)
+  def self.tokenizeLine(line, opts ={})
     i = line.split(";")
     s = i[0].scan(/(?:"|')[\w\s]*(?:"|')|[^\s]+/) if i[0]
     return unless s #return early if there is no content to tokenize
