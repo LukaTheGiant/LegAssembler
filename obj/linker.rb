@@ -160,7 +160,7 @@ module Linker
 
         FileUtils.mkdir_p outputPath
         f = File.open(outputFileName, "w")
-        dataOut = out.join(' ')
+        dataOut = out.each_slice(8).to_a.map{|x| x.join(' ')}.join("\n")
         # pp dataOut if opts[:verbose]
         f.write dataOut
 
