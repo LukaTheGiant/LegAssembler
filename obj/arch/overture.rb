@@ -1,6 +1,7 @@
 module Overture
   PackCharm = 'C*'
   ArchName = "ove"
+  MAXROMSIZE = 0x8000
 
   InstructionTypes = {
     imm: 0b00,
@@ -31,37 +32,34 @@ module Overture
     jgt: 7,
   }
 
-  LexRules = {
-    mov: {
-      proc: proc do |l|
-        nums = [NumberDecode.decode(l[1]), NumberDecode.decode(l[2])]
-        raise "mov needs 2 registers" if (nums.filter { |x| x[:type] == :reg }).empty?
-        next { type: :inst, inst: :mov, v1: nums[0], v2: nums[1] }
-      end,
-    },
-    ldi: {
-      proc: proc do |l|
-        # pp l
-        num = NumberDecode.decode(l[1])
-        # pp num
-        outReg = nil
-        outReg = NumberDecode.decode(l[2]) if l.length > 2
-        raise "Ldi[2] output register needs to be a register" if !(outReg.nil?) && outReg[:type] != :reg
-        out = []
-        unless num.is_a?(String)
-          raise "ldi needs value" unless num[:type] == :num
-          puts "[WARN] DATA LOSS FOR IMMEDIATE OVER #{0b00111111}" if num[:value] > 0b00111111
-        end
-        
+  SpecialRules = {
+    mov: proc do |l|
+      pp l if $ASMOptionsHash[:verbose]
+      nums = [NumberDecode.decode(l[1]), NumberDecode.decode(l[2])]
+      raise "mov needs 2 registers" if (nums.filter { |x| x[:type] == :reg }).empty?
+      next { type: :inst, inst: :mov, v1: nums[0], v2: nums[1] }
+    end,
 
-        out << { type: :inst, inst: :imm, v1: num }
-        out << { type: :inst, inst: :mov, v1: NumberDecode.decode("@0"), v2: outReg } unless outReg.nil?
-        next out
-      end,
-    },
+    ldi: proc do |l|
+      # pp l
+      num = NumberDecode.decode(l[1])
+      # pp num
+      outReg = nil
+      outReg = NumberDecode.decode(l[2]) if l.length > 2
+      raise "Ldi[2] output register needs to be a register" if !(outReg.nil?) && outReg[:type] != :reg
+      out = []
+      unless num.is_a?(String)
+        raise "ldi needs value" unless num[:type] == :num
+        puts "[WARN] DATA LOSS FOR IMMEDIATE OVER #{0b00111111}" if num[:value] > 0b00111111
+      end
+      
+      out << { type: :inst, inst: :imm, v1: num }
+      out << { type: :inst, inst: :mov, v1: NumberDecode.decode("@0"), v2: outReg } unless outReg.nil?
+      next out
+    end,
   }
 
-  CompRules = {
+  BinRules = {
     mov: proc do |t|
       next (InstructionTypes[:mov] << 6) | (t[:v1][:value] << 3) | (t[:v2][:value])
     end,
@@ -72,42 +70,51 @@ module Overture
       next (InstructionTypes[:jmp] << 6) | (t[:v2] << 3) | t[:v1]
     end,
     imm: proc do |t|
-      # pp t
+      pp t if $ASMOptionsHash[:verbose]
       puts "[WARN] IMMEDIATE VALUE TRUNCATED, UNEXPECTED RESULTS MAY OCCUR" if t[:v1][:value]&0b11000000 != 0
       next t[:v1][:value] & 0b00111111
     end,
   }
 
-  def self.assemble(tokenlist)
-    out = []
-    i = -1
-    tokenlist.each do |e|
+  IsALUInst = proc do |sym|
+    next ALUMAP.include? sym
+  end
+  IsCONDInst = proc do |sym|
+    next CONDMAP.include? sym
+  end
+  IsSpecialRule = proc do |sym|
+    next SpecialRules.include? sym
+  end
 
-      unless e[:type] == :token
-        out << e
-        next
-      end
+  def self.canAssemble?(sym)
+    out = false
+    out |= IsALUInst.call(sym)
+    out |= IsCONDInst.call(sym)
+    out |= IsSpecialRule.call(sym)
 
-      instSym = e[:content][0].to_sym
-      if LexRules.include? instSym
-        token = LexRules[instSym][:proc].call(e[:content])
-      elsif ALUMAP.include? instSym
-        token = { type: :inst, inst: :alu, v1: {value: ALUMAP[instSym]} }
-      elsif CONDMAP.include? instSym
-        token = []
-        match = /j\w{2}.* (?<cflag>(a|o)(n|!)?c)/.match(e[:content].join(' ')) #this regex seperates the cond carry from the string
-        e[:content].pop if match
-        token << { type: :inst, inst: :imm, v1: e[:content][1] } if e[:content].length > 1 
-        jmpInst = { type: :inst, inst: :jmp, v1: CONDMAP[instSym], v2: 0 }
-        token << jmpInst
+    return out
+  end
 
-        jmpInst[:v2] = condCarry(match) if match
-      else
-        token = e
-      end
-      out << token
+  def self.assemble(token)
+    instSym = token[:content][0].to_sym
+    case instSym
+    when IsSpecialRule
+      out = SpecialRules[instSym].call(token[:content])
+    when IsALUInst
+      out = { type: :inst, inst: :alu, v1: {value: ALUMAP[instSym]} }
+    when IsCONDInst
+      out = []
+      pp token if $ASMOptionsHash[:verbose]
+      match = /j\w{2}.* (?<cflag>(a|o)(n|!)?c)/.match(token[:content].join(' ')) #this regex seperates the cond carry from the string
+      token[:content].pop if match
+      out << { type: :inst, inst: :imm, v1: token[:content][1] } if token[:content][1]
+      jmpInst = { type: :inst, inst: :jmp, v1: CONDMAP[instSym], v2: 0 }
+      out << jmpInst
+
+      jmpInst[:v2] = condCarry(match) if match
+    else
+      out = e
     end
-    out.flatten!
     return out
   end
 

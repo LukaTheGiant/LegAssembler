@@ -28,7 +28,7 @@ $ASMOptionsHash = options
 
 case options[:arch]
 when "ove"
-  require_relative 'obj/arch/overture copy'
+  require_relative 'obj/arch/overture'
   m = Overture
 when "oven"
   require_relative 'obj/arch/overtureNext'
@@ -48,7 +48,7 @@ outputPath     = File.dirname(outputFileName)
 
 if (options[:asm].nil? && options[:ln].nil?)
   puts 'tokenizing file'
-  tokenList = Tokenizer.tokenizeFile(filePath)
+  tokenList = Tokenizer.tokenizeFile(filePath,options)
   pp tokenList if options[:verbose]
 
   puts 'assembling token list'
