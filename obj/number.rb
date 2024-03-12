@@ -6,7 +6,6 @@ module NumberDecode
     "%" => 10,
     "@" => :reg,
     "$" => :label,
-    "&" => :label,
     "\""=> :string,
   }
 
