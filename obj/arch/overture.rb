@@ -10,6 +10,12 @@ module Overture
     jmp: 0b11,
   }
 
+  ALUMODES = {
+    default: 0,
+    acc: 0b01,
+    alt: 0b10
+  }
+
   ALUMAP = {
     or: 0,
     nand: 1,
@@ -64,7 +70,7 @@ module Overture
       next (InstructionTypes[:mov] << 6) | (t[:v1][:value] << 3) | (t[:v2][:value])
     end,
     alu: proc do |t|
-      next (InstructionTypes[:alu] << 6) | t[:v1][:value]
+      next (InstructionTypes[:alu] << 6) | t[:mode]<< 3 | t[:v1][:value]
     end,
     jmp: proc do |t|
       next (InstructionTypes[:jmp] << 6) | (t[:v2] << 3) | t[:v1]
@@ -101,7 +107,13 @@ module Overture
     when IsSpecialRule
       out = SpecialRules[instSym].call(token[:content])
     when IsALUInst
-      out = { type: :inst, inst: :alu, v1: {value: ALUMAP[instSym]} }
+      mode = 0
+      token[:content].each do |t|
+        if ALUMODES.include?(t.to_sym)
+          mode |= ALUMODES[t.to_sym]
+        end
+      end
+      out = { type: :inst, inst: :alu, v1: {value: ALUMAP[instSym]}, mode: mode }
     when IsCONDInst
       out = []
       pp token if $ASMOptionsHash[:verbose]
